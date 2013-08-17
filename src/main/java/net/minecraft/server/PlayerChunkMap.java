@@ -8,6 +8,15 @@ import java.util.Collections;
 import java.util.Queue;
 import java.util.LinkedList;
 // CraftBukkit end
+//new import start
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.Security;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bukkit.craftbukkit.Main;
+import com.google.common.base.Charsets;
+//new import end
 
 public class PlayerChunkMap {
 
@@ -31,7 +40,7 @@ public class PlayerChunkMap {
             this.world = worldserver;
         }
     }
-
+	
     public WorldServer a() {
         return this.world;
     }
@@ -119,9 +128,30 @@ public class PlayerChunkMap {
 
         // CraftBukkit start - Load nearby chunks first
         List<ChunkCoordIntPair> chunkList = new LinkedList<ChunkCoordIntPair>();
+		//new code start
+        if (Main.chunkcache.containsKey(entityplayer.getUniqueID().toString())) Main.chunkcache.remove(entityplayer.getUniqueID().toString());
+        Main.chunkcache.put(entityplayer.getUniqueID().toString(), new ArrayList<String>());
+		//new code end
         for (int k = i - this.f; k <= i + this.f; ++k) {
             for (int l = j - this.f; l <= j + this.f; ++l) {
-                chunkList.add(new ChunkCoordIntPair(k, l));
+				//new code start
+            	Chunk chunk = new Chunk(entityplayer.world,k,l);
+            	Security.addProvider(new BouncyCastleProvider());
+            	MessageDigest mda = null;
+				try {
+					mda = MessageDigest.getInstance("SHA-512", "BC");
+				} catch (NoSuchAlgorithmException e) {
+					e.printStackTrace();
+				} catch (NoSuchProviderException e) {
+					e.printStackTrace();
+				}
+            	String data = chunk.entitySlices.toString()+"="+Integer.toString(chunk.x)+"="+Integer.toString(chunk.z)+"="+Integer.toString(chunk.tileEntities.size());
+            	byte [] hash = mda.digest(data.getBytes());
+            	if (!data.isEmpty()) {
+	            	Main.chunkcache.get(entityplayer.getUniqueID().toString()).add(hash.toString());
+				//new code end
+	                chunkList.add(new ChunkCoordIntPair(k, l));
+	            	} //new code (bracket)
             }
         }
 
@@ -129,6 +159,7 @@ public class PlayerChunkMap {
         for (ChunkCoordIntPair pair : chunkList) {
             this.a(pair.x, pair.z, true).a(entityplayer);
         }
+		
         // CraftBukkit end
 
         this.managedPlayers.add(entityplayer);
@@ -192,7 +223,7 @@ public class PlayerChunkMap {
                 }
             }
         }
-
+        Main.chunkcache.remove(entityplayer.getUniqueID().toString()); //new code
         this.managedPlayers.remove(entityplayer);
     }
 
@@ -219,18 +250,42 @@ public class PlayerChunkMap {
             List<ChunkCoordIntPair> chunksToLoad = new LinkedList<ChunkCoordIntPair>(); // CraftBukkit
 
             if (j1 != 0 || k1 != 0) {
+            	boolean go=false;
                 for (int l1 = i - i1; l1 <= i + i1; ++l1) {
                     for (int i2 = j - i1; i2 <= j + i1; ++i2) {
-                        if (!this.a(l1, i2, k, l, i1)) {
-                            chunksToLoad.add(new ChunkCoordIntPair(l1, i2)); // CraftBukkit
+						//new code start
+                    	if (!this.a(l1, i2, k, l, i1) || !this.a(l1 - j1, i2 - k1, i, j, i1)) {
+	                    	Chunk chunk = new Chunk(entityplayer.world,k,l);
+	                    	Security.addProvider(new BouncyCastleProvider());
+	                    	MessageDigest mda = null;
+	        				try {
+								mda = MessageDigest.getInstance("SHA-512", "BC");
+							} catch (NoSuchAlgorithmException e) {
+								e.printStackTrace();
+							} catch (NoSuchProviderException e) {
+								e.printStackTrace();
+							}
+	        				String data = chunk.entitySlices.toString()+"="+Integer.toString(chunk.x)+"="+Integer.toString(chunk.z)+"="+Integer.toString(chunk.tileEntities.size());
+	                    	byte [] hash = mda.digest(data.getBytes());
+	                    	if (chunk.isEmpty() || Main.chunkcache.get(entityplayer.getUniqueID().toString()).contains(hash.toString())){
+	                    		go=false;
+	                    	} else {
+	                    		Main.chunkcache.get(entityplayer.getUniqueID().toString()).add(hash.toString());
+	                    		go=true;
+	                    	}
+                    	}
+                    	//new code end
+                        if (!this.a(l1, i2, k, l, i1) && go==true) { //added go parameter
+                        	chunksToLoad.add(new ChunkCoordIntPair(l1, i2)); // CraftBukkit
                         }
 
-                        if (!this.a(l1 - j1, i2 - k1, i, j, i1)) {
+                        if (!this.a(l1 - j1, i2 - k1, i, j, i1) && go==true) { //added go parameter
                             PlayerChunk playerchunk = this.a(l1 - j1, i2 - k1, false);
 
                             if (playerchunk != null) {
                                 playerchunk.b(entityplayer);
                             }
+                        go=false;
                         }
                     }
                 }
