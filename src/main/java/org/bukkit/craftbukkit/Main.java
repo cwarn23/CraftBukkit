@@ -12,6 +12,8 @@ import joptsimple.OptionSet;
 import net.minecraft.server.MinecraftServer;
 
 public class Main {
+    //below line see net.minecraft.server.PlayerChunkMap
+    public static HashMap<String,List<String>> chunkcache = new HashMap<String,List<String>>(); //added in
     public static boolean useJline = true;
     public static boolean useConsole = true;
 
